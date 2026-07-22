@@ -1,0 +1,2204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dungeon Days</title>
+
+<!-- ── Social sharing (Open Graph + Twitter) ──────────────
+     og:image is a root-relative path, resolved against the deployed origin. -->
+<meta name="description" content="Dungeon Days — a retro roguelike. How many days can you survive the dungeon?">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Dungeon Days">
+<meta property="og:description" content="A retro CRT roguelike. Clear each chamber, descend the stairs, and see how many days you can survive.">
+<meta property="og:image" content="/KeyArt/DungeonDays_KeyArt.png">
+<meta property="og:image:alt" content="Dungeon Days key art">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Dungeon Days">
+<meta name="twitter:description" content="A retro CRT roguelike. How many days can you survive the dungeon?">
+<meta name="twitter:image" content="/KeyArt/DungeonDays_KeyArt.png">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Jacquard+12&family=Tiny5&display=swap" rel="stylesheet">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: #000; overflow: hidden; font-family: 'Tiny5', 'Courier New', monospace; }
+canvas { display: block; image-rendering: pixelated; image-rendering: crisp-edges; }
+
+.jacquard-12-regular {
+  font-family: "Jacquard 12", system-ui;
+  font-weight: 400;
+  font-style: normal;
+}
+
+.tiny5-regular {
+  font-family: "Tiny5", sans-serif;
+  font-weight: 400;
+  font-style: normal;
+}
+
+h1, h2 { font-family: "Jacquard 12", system-ui; font-weight: 400; font-style: normal; }
+
+#hud {
+  position: fixed; top: 0; left: 0; right: 0;
+  padding: 14px 20px;
+  display: flex; gap: 32px; align-items: center;
+  background: rgba(0,0,0,0.65);
+  border-bottom: 1px solid #222;
+  color: #fff; font-size: 17px;
+  pointer-events: none;
+  user-select: none;
+}
+.hud-item { display: flex; align-items: center; gap: 6px; }
+.hud-label { color: #aaa; font-size: 13px; }
+.hud-val { color: #fff; font-weight: bold; }
+#hearts { display: flex; gap: 6px; align-items: center; }
+#hearts img { width: 20px; height: 20px; image-rendering: pixelated; }
+.shield-icon { color: #4af; }
+#gate-hint { color: #fff; animation: pulse 1s infinite; display: none; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+#screen {
+  position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  background: rgba(0,0,0,0.9);
+  color: #fff;
+}
+#screen h1 { font-size: 62px; letter-spacing: 6px; margin-bottom: 8px; }
+#screen .sub { font-size: 18px; color: #888; margin-bottom: 40px; }
+#screen .stats { font-size: 16px; color: #ccc; margin: 5px 0; }
+#screen .prompt { margin-top: 36px; font-size: 15px; color: #666; animation: blink 1.4s infinite; }
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.15} }
+
+#title-screen h1 { color: #fff; text-shadow: 0 0 40px #888, 0 0 80px #444; }
+#title-screen .controls { margin-top: 24px; font-size: 14px; color: #666; line-height: 2; }
+#title-screen .controls span { color: #aaa; }
+
+#lore {
+  margin-top: 30px; width: 90%; max-width: 520px;
+}
+#lore summary {
+  cursor: pointer; text-align: center; list-style: none;
+  font-size: 13px; letter-spacing: 3px; color: #888;
+  padding: 6px 0; user-select: none; transition: color 0.2s;
+}
+#lore summary::-webkit-details-marker { display: none; }
+#lore summary::before { content: '▸ '; }
+#lore[open] summary::before { content: '▾ '; }
+#lore summary:hover { color: #ddd; }
+#lore .lore-body {
+  margin-top: 16px; font-size: 13px; line-height: 1.85; color: #999;
+  text-align: left;
+}
+#lore .lore-body p { margin-bottom: 12px; }
+#lore .lore-body p.hook { color: #ccc; margin-top: 18px; }
+
+#death-screen h1 { color: #fff; text-shadow: 0 0 40px #888; }
+
+#upgrade-screen {
+  position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+  display: none; flex-direction: column; align-items: center; justify-content: center;
+  background: rgba(0,0,0,0.93);
+  color: #fff;
+}
+#upgrade-screen h2 { font-size: 38px; color: #fff; margin-bottom: 6px; }
+#upgrade-screen .sub { color: #888; margin-bottom: 36px; font-size: 15px; }
+.upgrade-grid { display: flex; gap: 18px; flex-wrap: wrap; justify-content: center; max-width: 92vw; }
+.upgrade-card {
+  width: 180px; padding: 24px 18px;
+  background: #0a0a0a; border: 2px solid #333; border-radius: 0;
+  cursor: pointer; text-align: center; transition: border-color 0.2s, background 0.2s, transform 0.1s;
+}
+.upgrade-card:hover { border-color: #fff; background: #111; transform: translateY(-3px); }
+.upgrade-card .icon { font-size: 40px; display: block; margin-bottom: 12px; }
+.upgrade-card .name { font-weight: bold; font-size: 16px; color: #fff; display: block; margin-bottom: 7px; }
+.upgrade-card .desc { font-size: 13px; color: #999; display: block; line-height: 1.5; }
+.upgrade-card .cost { font-size: 12px; color: #ddd; display: block; margin-top: 14px; letter-spacing: 1px; }
+.upgrade-card.disabled { opacity: 0.35; cursor: not-allowed; pointer-events: none; }
+.upgrade-card.disabled:hover { border-color: #333; background: #0a0a0a; transform: none; }
+
+#minimap-wrap {
+  position: fixed; bottom: 14px; right: 14px;
+  pointer-events: none; display: none; z-index: 100;
+}
+#minimap-wrap .mini-label {
+  font-size: 9px; color: #333; text-align: right; margin-bottom: 3px;
+  font-family: 'Courier New', monospace; letter-spacing: 3px;
+}
+#minimap-canvas { display: block; border: 1px solid #1a1a1a; }
+
+/* ── Settings gear button ────────────────────────────── */
+#settings-btn {
+  position: fixed; top: 12px; right: 14px; z-index: 200;
+  display: none; width: 34px; height: 34px;
+  align-items: center; justify-content: center;
+  background: #000; border: 2px solid #fff; border-radius: 999px;
+  color: #fff; font-size: 16px; cursor: pointer;
+  user-select: none; transition: transform 0.15s, background 0.15s;
+}
+#settings-btn:hover { background: #fff; color: #000; transform: rotate(40deg); }
+
+/* ── Settings / pause panel ──────────────────────────── */
+#settings-screen {
+  position: fixed; inset: 0; z-index: 300;
+  display: none; flex-direction: column; align-items: center; justify-content: center;
+  background: rgba(0,0,0,0.9); color: #fff;
+}
+#settings-screen h2 { font-size: 40px; letter-spacing: 4px; margin-bottom: 4px; }
+#settings-screen .sub { font-size: 14px; color: #777; margin-bottom: 34px; }
+.setting-row {
+  display: flex; align-items: center; gap: 16px;
+  width: 340px; max-width: 82vw; margin: 12px 0;
+}
+.setting-row label {
+  width: 90px; font-size: 13px; letter-spacing: 2px; color: #aaa;
+  text-transform: uppercase;
+}
+.setting-row input[type=range] {
+  -webkit-appearance: none; appearance: none;
+  flex: 1; height: 4px; background: #333; outline: none; cursor: pointer;
+}
+.setting-row input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none;
+  width: 16px; height: 16px; background: #fff; border-radius: 999px; cursor: pointer;
+}
+.setting-row input[type=range]::-moz-range-thumb {
+  width: 16px; height: 16px; background: #fff; border: none; border-radius: 999px; cursor: pointer;
+}
+.setting-row .val { width: 38px; text-align: right; font-size: 13px; color: #fff; }
+#settings-resume {
+  margin-top: 34px; padding: 12px 34px;
+  background: #000; color: #fff; border: 2px solid #fff; border-radius: 999px;
+  font-family: 'Tiny5', monospace; font-size: 15px; letter-spacing: 2px;
+  cursor: pointer; transition: background 0.15s, color 0.15s;
+}
+#settings-resume:hover { background: #fff; color: #000; }
+
+/* ── Curse banner ────────────────────────────────────── */
+#curse-banner {
+  position: fixed; top: 34%; left: 0; right: 0; z-index: 150;
+  text-align: center; pointer-events: none; opacity: 0;
+}
+#curse-banner .curse-kicker {
+  font-size: 14px; letter-spacing: 6px; color: #d33;
+}
+#curse-banner .curse-name {
+  font-family: "Jacquard 12", system-ui;
+  font-size: 58px; letter-spacing: 4px; color: #fff;
+  text-shadow: 0 0 30px #a00, 0 0 60px #500; margin: 6px 0;
+}
+#curse-banner .curse-desc { font-size: 14px; color: #bbb; letter-spacing: 1px; }
+#curse-banner.show { animation: curseFlash 3.2s ease-out forwards; }
+@keyframes curseFlash {
+  0%   { opacity: 0; transform: translateY(14px) scale(0.96); }
+  12%  { opacity: 1; transform: translateY(0) scale(1); }
+  78%  { opacity: 1; transform: translateY(0) scale(1); }
+  100% { opacity: 0; transform: translateY(-10px) scale(1.02); }
+}
+
+/* ── Relic reveal (what you unlocked) ────────────────── */
+#relic-reveal {
+  position: fixed; inset: 0; z-index: 320;
+  display: none; flex-direction: column; align-items: center; justify-content: center;
+  background: rgba(0,0,0,0.94); color: #fff;
+}
+#relic-reveal .kicker { font-size: 13px; letter-spacing: 5px; color: #888; margin-bottom: 22px; }
+#relic-reveal .relic-card {
+  width: 230px; padding: 32px 22px; text-align: center;
+  background: #0a0a0a; border: 2px solid #fff; border-radius: 0;
+  box-shadow: 0 0 40px rgba(255,255,255,0.12);
+  animation: relicPop 0.4s ease-out;
+}
+@keyframes relicPop {
+  0% { opacity: 0; transform: scale(0.8); }
+  100% { opacity: 1; transform: scale(1); }
+}
+#relic-reveal .relic-card .icon { font-size: 46px; display: block; margin-bottom: 14px; }
+#relic-reveal .relic-card .name { font-size: 20px; font-weight: bold; display: block; margin-bottom: 10px; }
+#relic-reveal .relic-card .desc { font-size: 13px; color: #aaa; line-height: 1.6; display: block; }
+#relic-reveal .relic-hint {
+  margin-top: 28px; font-size: 13px; color: #555; cursor: pointer;
+  text-decoration: underline;
+}
+
+/* ── Shrine choice modal ─────────────────────────────── */
+#shrine-choice {
+  position: fixed; inset: 0; z-index: 320;
+  display: none; flex-direction: column; align-items: center; justify-content: center;
+  background: rgba(0,0,0,0.93); color: #fff;
+}
+#shrine-choice .kicker { font-size: 13px; letter-spacing: 5px; color: #888; margin-bottom: 26px; }
+
+/* ── SWARM curse red tint ────────────────────────────── */
+#swarm-overlay {
+  position: fixed; inset: 0; z-index: 140; pointer-events: none; display: none;
+  background: radial-gradient(ellipse at center,
+              rgba(120,0,0,0.10) 25%, rgba(150,0,0,0.42) 100%);
+  mix-blend-mode: multiply;
+  animation: swarmPulse 1.7s ease-in-out infinite;
+}
+@keyframes swarmPulse { 0%,100% { opacity: 0.72; } 50% { opacity: 1; } }
+
+/* ── Ko-fi pill (death screen) ───────────────────────── */
+.kofi-pill {
+  display: inline-block; margin-top: 22px; padding: 11px 28px;
+  background: #000; color: #fff !important;
+  border: 2px solid #fff; border-radius: 999px;
+  font-family: 'Tiny5', monospace; font-size: 15px; letter-spacing: 2px;
+  text-decoration: none; cursor: pointer;
+  transition: background 0.15s, color 0.15s, transform 0.1s;
+}
+.kofi-pill:hover { background: #fff; color: #000 !important; transform: translateY(-2px); }
+
+/* ── Site-wide CRT treatment ─────────────────────────── */
+/* Soft glow + slight blur on headline text only — body text stays crisp and readable */
+#title-screen h1, #death-screen h1 {
+  filter: blur(0.4px);
+}
+/* Full-page overlay: vignette + scanlines + animated grain. Sits above
+   everything, never eats clicks. */
+#crt {
+  /* --- scanline controls --- */
+  --scanline-thickness: 1px;   /* width of each dark line  */
+  --scanline-gap: 1px;         /* clear space between lines */
+  --scanline-opacity: 0.20;    /* darkness of each line     */
+  position: fixed; inset: 0; z-index: 9999; pointer-events: none;
+  background: radial-gradient(ellipse at center,
+              rgba(0,0,0,0) 52%, rgba(0,0,0,0.55) 100%);
+}
+#crt::before {            /* scanlines */
+  content: ''; position: absolute; inset: 0;
+  background: repeating-linear-gradient(0deg,
+              rgba(0,0,0,var(--scanline-opacity)) 0,
+              rgba(0,0,0,var(--scanline-opacity)) var(--scanline-thickness),
+              transparent var(--scanline-thickness),
+              transparent calc(var(--scanline-thickness) + var(--scanline-gap)));
+  mix-blend-mode: multiply;
+}
+#crt::after {             /* animated film grain */
+  content: ''; position: absolute; inset: -50%;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  opacity: 0.07; mix-blend-mode: screen;
+  animation: grain 0.5s steps(1) infinite;
+}
+@keyframes grain {
+  0%   { transform: translate(0,0); }
+  20%  { transform: translate(-3%, 2%); }
+  40%  { transform: translate(2%, -4%); }
+  60%  { transform: translate(-2%, 3%); }
+  80%  { transform: translate(3%, 1%); }
+  100% { transform: translate(0,0); }
+}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="hud" style="display:none">
+  <div class="hud-item">
+    <div class="hud-label">HEALTH</div>
+    <div id="hearts"></div>
+  </div>
+  <div class="hud-item" id="shield-display" style="display:none">
+    <span class="shield-icon">&#9632;</span>
+    <span class="hud-val" id="shield-val">0</span>
+  </div>
+  <div class="hud-item">
+    <div class="hud-label">DAY</div>
+    <div class="hud-val" id="level-val">1</div>
+  </div>
+  <div class="hud-item">
+    <div class="hud-label">TOKENS</div>
+    <div class="hud-val" id="token-val">0</div>
+  </div>
+  <div id="gate-hint">&#9660; STAIRS REVEALED &#9660;</div>
+</div>
+
+<div id="title-screen" class="screen" style="position:fixed;top:0;left:0;right:0;bottom:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:rgba(0,0,0,0.95)">
+  <h1 style="font-size:62px;letter-spacing:6px;color:#fff;text-shadow:0 0 40px #aaa;margin-bottom:8px;">DUNGEON DAYS</h1>
+  <div style="font-size:17px;color:#555;margin-bottom:44px;">How many days can you survive?</div>
+  <div style="font-size:14px;color:#555;line-height:2.2;text-align:center;">
+    <span style="color:#aaa;">WASD / Arrow Keys</span> &mdash; Move<br>
+    <span style="color:#aaa;">Space</span> &mdash; Shoot in last direction<br>
+    <span style="color:#aaa;">Eliminate all enemies</span> to reveal the stairs<br>
+    <span style="color:#aaa;">Walk into the stairs</span> to descend
+  </div>
+
+  <details id="lore" onkeydown="event.stopPropagation()">
+    <summary>LORE</summary>
+    <div class="lore-body">
+      <p>They say the knight who clears the Lower Halls of the dungeon will have his name carved into the gates of the capital. Songs will be written. Statues will be raised. Kings will be brought to their knees before thee.</p>
+      <p>But no one dares ask what happened to the last knight who believed that.</p>
+      <p>You've heard the stories. The dungeon beneath the ruined keep, older than the crown, hungrier than any war. Every generation, someone goes down swearing they'll be the one who finally clears it. Every generation, the halls go deeper. Get colder. Crowded with skulls.</p>
+      <p>Tonight, it's your turn.</p>
+      <p>You tell yourself this is different. You tell yourself you're stronger, smarter, luckier than the ones who came before. The dungeon doesn't argue. It never has to. It just opens the door.</p>
+      <p class="hook">Clear each chamber and make it to the next set of stairs.</p>
+      <p class="hook">Fame awaits you at the bottom. If you can get there.</p>
+    </div>
+  </details>
+
+  <div style="margin-top:40px;font-size:15px;color:#444;animation:blink 1.4s infinite;">Press any key to begin</div>
+</div>
+
+<div id="death-screen" class="screen" style="position:fixed;top:0;left:0;right:0;bottom:0;display:none;flex-direction:column;align-items:center;justify-content:center;background:rgba(0,0,0,0.92)">
+  <h1 style="font-size:62px;letter-spacing:6px;color:#fff;margin-bottom:8px;">YOU DIED</h1>
+  <div style="font-size:17px;color:#555;margin-bottom:28px;">Your dungeon run has ended</div>
+  <div style="font-size:16px;color:#ccc;margin:5px 0;">Days Survived: <span id="final-level" style="color:#fff;font-weight:bold;">0</span></div>
+  <div style="font-size:16px;color:#ccc;margin:5px 0;">Enemies Killed: <span id="final-kills" style="color:#fff;font-weight:bold;">0</span></div>
+  <div style="font-size:15px;color:#888;margin-top:22px;max-width:480px;text-align:center;">Powers Used</div>
+  <div id="final-upgrades" style="font-size:14px;color:#ccc;margin-top:8px;max-width:480px;text-align:center;line-height:1.7;">None</div>
+  <div style="font-size:13px;color:#666;font-style:italic;margin-top:26px;max-width:420px;text-align:center;line-height:1.7;">The gods of the dungeon accept tribute. Leave an offering below, and maybe &mdash; just maybe &mdash; they'll show you more mercy next time.</div>
+  <a class="kofi-pill" href="https://ko-fi.com/freshcake" target="_blank" rel="noopener" onclick="event.stopPropagation()">&#9829; Leave a tip on Ko-fi</a>
+  <div style="margin-top:30px;font-size:15px;color:#444;animation:blink 1.4s infinite;">Press any key to try again</div>
+</div>
+
+<div id="upgrade-screen">
+  <h2>Power Unlocked</h2>
+  <div class="sub">Spend tokens on a reward for surviving another day</div>
+  <div class="sub" id="upgrade-token-balance" style="margin-top:-24px;">Tokens: 0</div>
+  <div class="upgrade-grid" id="upgrade-grid"></div>
+  <div id="upgrade-skip" onclick="SFX.menu(); closeUpgradeScreen()" style="margin-top:30px;font-size:13px;color:#555;cursor:pointer;text-decoration:underline;">Continue without a reward</div>
+</div>
+
+<div id="minimap-wrap">
+  <div class="mini-label">MAP</div>
+  <canvas id="minimap-canvas"></canvas>
+</div>
+
+<div id="settings-btn" onclick="openSettings()" title="Settings">&#9881;</div>
+
+<div id="settings-screen">
+  <h2>PAUSED</h2>
+  <div class="sub">Adjust volume &mdash; the dungeon waits</div>
+  <div class="setting-row">
+    <label>Music</label>
+    <input type="range" id="music-vol" min="0" max="100" value="50">
+    <span class="val" id="music-vol-val">50</span>
+  </div>
+  <div class="setting-row">
+    <label>SFX</label>
+    <input type="range" id="sfx-vol" min="0" max="100" value="80">
+    <span class="val" id="sfx-vol-val">80</span>
+  </div>
+  <div id="settings-resume" onclick="closeSettings()">RESUME</div>
+</div>
+
+<div id="curse-banner">
+  <div class="curse-kicker" id="curse-kicker">&#9888; CURSE</div>
+  <div class="curse-name" id="curse-name">SWARM</div>
+  <div class="curse-desc" id="curse-desc"></div>
+</div>
+
+<div id="relic-reveal">
+  <div class="kicker">RELIC STUDIED &mdash; NEW POWER UNLOCKED</div>
+  <div class="relic-card" id="relic-card">
+    <span class="icon" id="relic-icon">?!</span>
+    <span class="name" id="relic-name"></span>
+    <span class="desc" id="relic-desc"></span>
+  </div>
+  <div class="relic-hint" id="relic-hint" onclick="dismissRelicReveal()">Continue &rarr;</div>
+</div>
+
+<div id="shrine-choice">
+  <div class="kicker">A SHRINE HUMS BEFORE YOU</div>
+  <div class="upgrade-grid">
+    <div class="upgrade-card" id="shrine-health" onclick="chooseShrine('health')">
+      <span class="icon">+HP</span>
+      <span class="name">Blessing of Vigor</span>
+      <span class="desc">+1 Max Health<br>and heal to full</span>
+    </div>
+    <div class="upgrade-card" id="shrine-empower" onclick="chooseShrine('empower')">
+      <span class="icon">^^</span>
+      <span class="name">Empower a Power</span>
+      <span class="desc" id="shrine-empower-desc">Strengthen a power<br>you already own</span>
+    </div>
+  </div>
+</div>
+
+<audio id="music" loop preload="auto"
+  src="Music/dungeon-theme.mp3"></audio>
+
+<div id="swarm-overlay"></div>
+
+<div id="crt"></div>
+
+<script>
+// ══════════════════════════════════════════════════════
+//  CANVAS & CONTEXT
+// ══════════════════════════════════════════════════════
+// The game renders to an offscreen 2D buffer; a WebGL pass blits it to the
+// visible canvas through a CRT / retro shader. All game draw code keeps using
+// `canvas` + `ctx` unchanged.
+const displayCanvas = document.getElementById('c');
+const canvas = document.createElement('canvas');
+const ctx = canvas.getContext('2d');
+ctx.imageSmoothingEnabled = false;
+
+let POST_ON = true;                         // toggle with the `P` key
+const gl = displayCanvas.getContext('webgl', { antialias: false, alpha: false, depth: false });
+const blitCtx = gl ? null : displayCanvas.getContext('2d');   // fallback: raw blit
+
+function resize() {
+  canvas.width  = displayCanvas.width  = window.innerWidth;
+  canvas.height = displayCanvas.height = window.innerHeight;
+  if (gl) gl.viewport(0, 0, gl.drawingBufferWidth, gl.drawingBufferHeight);
+}
+window.addEventListener('resize', resize);
+
+// ══════════════════════════════════════════════════════
+//  POST-PROCESSING  (chromatic aberration · CRT glow ·
+//  scanlines · grain · dithering · haze · vignette)
+// ══════════════════════════════════════════════════════
+function createPost(gl) {
+  const VS = `
+    attribute vec2 aPos;
+    varying vec2 vUv;
+    void main() { vUv = aPos * 0.5 + 0.5; gl_Position = vec4(aPos, 0.0, 1.0); }`;
+
+  const FS = `
+    precision highp float;
+    varying vec2 vUv;
+    uniform sampler2D uTex;
+    uniform vec2  uRes;
+    uniform float uTime;
+    uniform float uFx;       // 1 = effects on, 0 = pass-through
+    uniform vec2  uLight;    // player position (uv space, y-up)
+    uniform float uLightOn;  // 1 = darken map around the player light
+
+    // ---- tunables ----
+    const float CHROMA    = 0.5;    // base chromatic-aberration spread (px)
+    const float CHROMA_EDGE = 2.5;  // extra spread toward the edges
+    const float GLOW      = 0.89;   // CRT bloom strength
+    const float GLOW_THR  = 0.50;   // brightness threshold the glow blooms above
+    const float BLUR      = 0.40;   // softening mix (0 = sharp, 1 = full blur)
+    const float BLUR_RAD  = 2.3;    // blur sample radius (px)
+    const float HAZE      = 1.2;    // lifted-black atmospheric haze
+    const float LEVELS    = 16.0;   // colour quantisation for dithering
+
+    // ---- player light ----
+    const float LIGHT_INNER = 0.10; // fully-lit radius (screen-heights)
+    const float LIGHT_OUTER = 0.72; // darkness radius — large falloff
+    const float LIGHT_BANDS = 6.0;  // dithered falloff steps
+    const float AMBIENT     = 0.03; // brightness outside the light
+
+    // 2x2 -> 4x4 ordered (Bayer) dither, no integer ops needed
+    float bayer2(vec2 a) {
+      vec2 q = floor(mod(a, 2.0));
+      return mix(mix(0.0, 2.0, q.x), mix(3.0, 1.0, q.x), q.y);
+    }
+    float bayer4(vec2 a) {
+      return (4.0 * bayer2(floor(a / 2.0)) + bayer2(a)) / 16.0;
+    }
+
+    void main() {
+      vec2 uv = vUv;
+      vec2 c  = uv - 0.5;
+      float r2 = dot(c, c);
+      vec2 px = 1.0 / uRes;
+
+      // Chromatic aberration: R/B sampled along the radial axis, spread grows outward
+      vec2 dir = c / (length(c) + 1e-4);
+      vec2 off = dir * (CHROMA + CHROMA_EDGE * r2) * px;
+      vec3 col = vec3(
+        texture2D(uTex, uv + off).r,
+        texture2D(uTex, uv).g,
+        texture2D(uTex, uv - off).b
+      );
+
+      // Soft blur (4 diagonal taps) mixed back in
+      vec2 b = BLUR_RAD * px;
+      vec3 blur = texture2D(uTex, uv + vec2( b.x,  b.y)).rgb
+                + texture2D(uTex, uv + vec2(-b.x,  b.y)).rgb
+                + texture2D(uTex, uv + vec2( b.x, -b.y)).rgb
+                + texture2D(uTex, uv + vec2(-b.x, -b.y)).rgb;
+      col = mix(col, blur * 0.25, BLUR);
+
+      // CRT glow / bloom: wide bright-pass halo from two rings of taps
+      vec2 g1 = 2.5 * px, g2 = 6.0 * px;
+      vec3 glow =
+          texture2D(uTex, uv + vec2(g1.x, 0.0)).rgb + texture2D(uTex, uv - vec2(g1.x, 0.0)).rgb
+        + texture2D(uTex, uv + vec2(0.0, g1.y)).rgb + texture2D(uTex, uv - vec2(0.0, g1.y)).rgb
+        + texture2D(uTex, uv + vec2(g2.x, 0.0)).rgb + texture2D(uTex, uv - vec2(g2.x, 0.0)).rgb
+        + texture2D(uTex, uv + vec2(0.0, g2.y)).rgb + texture2D(uTex, uv - vec2(0.0, g2.y)).rgb;
+      glow = max(glow * 0.125 - GLOW_THR, 0.0);
+      col += glow * GLOW;
+
+      // Haze: lift the blacks with a cool tint
+      col += vec3(0.045, 0.055, 0.075) * HAZE;
+
+      // Player light: dithered falloff so the map is dark away from the player
+      if (uLightOn > 0.5) {
+        vec2 asp = vec2(uRes.x / uRes.y, 1.0);
+        float d = distance(uv * asp, uLight * asp);
+        float lf = 1.0 - smoothstep(LIGHT_INNER, LIGHT_OUTER, d);
+        lf = clamp(floor(lf * LIGHT_BANDS + bayer4(gl_FragCoord.xy)) / LIGHT_BANDS, 0.0, 1.0);
+        col *= mix(AMBIENT, 1.0, lf);
+      }
+
+      // Subtle CRT brightness flicker
+      col *= 0.985 + 0.015 * sin(uTime * 8.0);
+
+      // Ordered dithering + quantisation -> retro banding
+      col += (bayer4(gl_FragCoord.xy) - 0.5) / LEVELS;
+      col = floor(col * LEVELS + 0.5) / LEVELS;
+
+      gl_FragColor = vec4(mix(texture2D(uTex, uv).rgb, col, uFx), 1.0);
+    }`;
+
+  function compile(type, src) {
+    const s = gl.createShader(type);
+    gl.shaderSource(s, src); gl.compileShader(s);
+    if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s));
+    return s;
+  }
+  const prog = gl.createProgram();
+  gl.attachShader(prog, compile(gl.VERTEX_SHADER, VS));
+  gl.attachShader(prog, compile(gl.FRAGMENT_SHADER, FS));
+  gl.linkProgram(prog);
+  if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(prog));
+  gl.useProgram(prog);
+
+  const buf = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 3,-1, -1,3]), gl.STATIC_DRAW);
+  const aPos = gl.getAttribLocation(prog, 'aPos');
+  gl.enableVertexAttribArray(aPos);
+  gl.vertexAttribPointer(aPos, 2, gl.FLOAT, false, 0, 0);
+
+  const tex = gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_2D, tex);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+  gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+
+  const uTex     = gl.getUniformLocation(prog, 'uTex');
+  const uRes     = gl.getUniformLocation(prog, 'uRes');
+  const uTime    = gl.getUniformLocation(prog, 'uTime');
+  const uFx      = gl.getUniformLocation(prog, 'uFx');
+  const uLight   = gl.getUniformLocation(prog, 'uLight');
+  const uLightOn = gl.getUniformLocation(prog, 'uLightOn');
+
+  return function draw(src, t, fx, lx, ly, lon) {
+    gl.viewport(0, 0, src.width, src.height);
+    gl.bindTexture(gl.TEXTURE_2D, tex);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, src);
+    gl.uniform1i(uTex, 0);
+    gl.uniform2f(uRes, src.width, src.height);
+    gl.uniform1f(uTime, t);
+    gl.uniform1f(uFx, fx);
+    gl.uniform2f(uLight, lx, ly);
+    gl.uniform1f(uLightOn, lon);
+    gl.drawArrays(gl.TRIANGLES, 0, 3);
+  };
+}
+
+let post = null;
+if (gl) { try { post = createPost(gl); } catch (e) { console.warn('post-fx disabled:', e); } }
+
+function present(t) {
+  // Player position in uv space (y-up) for the light source
+  let lx = 0.5, ly = 0.5, lon = 0;
+  if ((gState === 'playing' || gState === 'paused' || gState === 'shrine') && typeof player !== 'undefined' && player) {
+    lx =     ((player.x - camX) * ZOOM) / canvas.width;
+    ly = 1 - ((player.y - camY) * ZOOM) / canvas.height;
+    lon = 1;
+  }
+  if (post) { post(canvas, t, POST_ON ? 1 : 0, lx, ly, lon); return; }
+  if (blitCtx) blitCtx.drawImage(canvas, 0, 0);
+}
+
+window.addEventListener('keydown', e => {
+  if (e.code === 'KeyP') {
+    POST_ON = !POST_ON;
+    const crt = document.getElementById('crt');
+    if (crt) crt.style.display = POST_ON ? 'block' : 'none';
+  }
+  if (e.code === 'KeyM' && gState === 'playing') {
+    showMinimap = !showMinimap;
+    document.getElementById('minimap-wrap').style.display = showMinimap ? 'block' : 'none';
+  }
+});
+
+resize();
+
+// ══════════════════════════════════════════════════════
+//  CONSTANTS
+// ══════════════════════════════════════════════════════
+const TILE        = 32;
+const MAP_W       = 64;
+const MAP_H       = 64;
+const ZOOM        = 2.5;
+const BASE_PLAYER_SPEED    = 200;
+const BASE_SHOOT_COOLDOWN  = 0.75;
+const PROJ_SPEED_BASE      = 350;
+const INVINCIBLE_TIME      = 0.45;
+const ENEMY_BASE_SPEED     = 70;
+const ENEMY_DETECT_RANGE   = 230;
+const PLAYER_SIZE          = 13;
+const ENEMY_SIZE           = 13;
+const PROJ_SIZE            = 5;
+const MAX_PROJ_DIST        = TILE * 14;
+const MINI_TILE   = 2;   // pixels per tile on minimap
+const MINI_VISION = 8;   // exploration radius in tiles
+
+// ══════════════════════════════════════════════════════
+//  IMAGES
+// ══════════════════════════════════════════════════════
+const imgs = {};
+let assetsReady = false;
+
+function loadAssets(cb) {
+  const srcs = {
+    pIdle0:   'sprites/player_idle_01.svg',
+    pIdle1:   'sprites/player_idle_02.svg',
+    pIdle2:   'sprites/player_idle_03.svg',
+    pWalk0:   'sprites/player_walk_01.svg',
+    pWalk1:   'sprites/player_walk_02.svg',
+    pWalk2:   'sprites/player_walk_03.svg',
+    wall1:    'sprites/wall_01.svg',
+    wall2:    'sprites/wall_02.svg',
+    wallDis:  'sprites/wall_dissolve.svg',
+    floor1:   'sprites/floor_01.svg',
+    floor2:   'sprites/floor_02.svg',
+    gate:     'sprites/gate_01.svg',
+    health:   'sprites/health.svg',
+    enemy:    'sprites/Skull.png',
+  };
+  let remaining = Object.keys(srcs).length;
+  for (const [k, src] of Object.entries(srcs)) {
+    const img = new Image();
+    img.onload  = () => { if (--remaining === 0) { assetsReady = true; cb(); } };
+    img.onerror = () => { imgs[k] = null; if (--remaining === 0) { assetsReady = true; cb(); } };
+    img.src = src;
+    imgs[k] = img;
+  }
+}
+
+// ══════════════════════════════════════════════════════
+//  SOUND — tiny WebAudio 8-bit synth, no external assets
+// ══════════════════════════════════════════════════════
+let actx = null, masterGain = null, noiseBuffer = null;
+let soundBroken = false;
+
+function ensureAudio() {
+  if (actx || soundBroken) { if (actx && actx.state === 'suspended') actx.resume(); return; }
+  try {
+    actx = new (window.AudioContext || window.webkitAudioContext)();
+    masterGain = actx.createGain();
+    masterGain.gain.value = 0.9 * sfxVolume;
+    masterGain.connect(actx.destination);
+  } catch (e) { soundBroken = true; }
+}
+
+// Square/triangle/sawtooth blip with a pitch envelope. `when` schedules ahead
+// of "now" (seconds) so short sequences can be built without setTimeout drift.
+function tone(freq, when, dur, type, vol, endFreq) {
+  if (!actx) return;
+  const t0 = actx.currentTime + when;
+  const osc = actx.createOscillator();
+  const gain = actx.createGain();
+  osc.type = type || 'square';
+  osc.frequency.setValueAtTime(freq, t0);
+  if (endFreq && endFreq !== freq) osc.frequency.exponentialRampToValueAtTime(Math.max(endFreq, 1), t0 + dur);
+  gain.gain.setValueAtTime(0, t0);
+  gain.gain.linearRampToValueAtTime(vol, t0 + Math.min(0.01, dur * 0.3));
+  gain.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+  osc.connect(gain).connect(masterGain);
+  osc.start(t0);
+  osc.stop(t0 + dur + 0.02);
+}
+
+// Filtered white-noise burst — for hits/explosions, the other half of the classic 8-bit palette
+function getNoiseBuffer() {
+  if (!noiseBuffer) {
+    const len = actx.sampleRate * 0.5;
+    noiseBuffer = actx.createBuffer(1, len, actx.sampleRate);
+    const data = noiseBuffer.getChannelData(0);
+    for (let i = 0; i < len; i++) data[i] = Math.random() * 2 - 1;
+  }
+  return noiseBuffer;
+}
+function noise(when, dur, vol, filterFreq) {
+  if (!actx) return;
+  const t0 = actx.currentTime + when;
+  const src = actx.createBufferSource();
+  src.buffer = getNoiseBuffer();
+  const filter = actx.createBiquadFilter();
+  filter.type = 'lowpass';
+  filter.frequency.setValueAtTime(filterFreq, t0);
+  const gain = actx.createGain();
+  gain.gain.setValueAtTime(vol, t0);
+  gain.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+  src.connect(filter).connect(gain).connect(masterGain);
+  src.start(t0);
+  src.stop(t0 + dur + 0.02);
+}
+
+const SFX = {
+  shoot()      { tone(760, 0, 0.07, 'square', 0.09, 380); },
+  hit()        { tone(180, 0, 0.05, 'square', 0.13, 90); },
+  kill()       { noise(0, 0.15, 0.15, 2000); tone(140, 0, 0.12, 'sawtooth', 0.10, 40); },
+  hurt()       { tone(130, 0, 0.16, 'square', 0.18, 55); },
+  shield()     { tone(500, 0, 0.09, 'triangle', 0.16, 950); },
+  revive()     { tone(300, 0, 0.10, 'square', 0.18, 600); tone(600, 0.10, 0.18, 'square', 0.18, 900); },
+  pickup()     { tone(660, 0, 0.05, 'square', 0.09, 880); tone(880, 0.05, 0.06, 'square', 0.09, 1100); },
+  shrine()     { tone(440, 0, 0.12, 'triangle', 0.14, 660); tone(660, 0.12, 0.20, 'triangle', 0.14, 880); },
+  gate()       { [523, 659, 784, 1047].forEach((f, i) => tone(f, i * 0.08, 0.14, 'square', 0.12)); },
+  upgrade()    { [392, 494, 587, 784].forEach((f, i) => tone(f, i * 0.07, 0.14, 'square', 0.13)); },
+  studyRelic() { tone(300, 0, 0.09, 'triangle', 0.14, 500); tone(220, 0.09, 0.16, 'triangle', 0.14, 160); },
+  menu()       { tone(500, 0, 0.035, 'square', 0.06); },
+  gameOver()   { [330, 294, 262, 196].forEach((f, i) => tone(f, i * 0.15, 0.22, 'square', 0.15)); },
+};
+
+// ══════════════════════════════════════════════════════
+//  MUSIC & VOLUME  (persisted in localStorage)
+// ══════════════════════════════════════════════════════
+const musicEl = document.getElementById('music');
+let musicVolume = 0.5;   // 0..1
+let sfxVolume   = 0.8;   // 0..1
+
+function loadVolumePrefs() {
+  const m = parseFloat(localStorage.getItem('dd_music'));
+  const s = parseFloat(localStorage.getItem('dd_sfx'));
+  if (!isNaN(m)) musicVolume = Math.min(1, Math.max(0, m));
+  if (!isNaN(s)) sfxVolume   = Math.min(1, Math.max(0, s));
+}
+function applyMusicVolume() { if (musicEl) musicEl.volume = musicVolume; }
+function applySfxVolume()   { if (masterGain) masterGain.gain.value = 0.9 * sfxVolume; }
+
+function startMusic() {
+  if (!musicEl) return;
+  applyMusicVolume();
+  const p = musicEl.play();
+  if (p && p.catch) p.catch(() => {}); // ignore autoplay rejection until a gesture lands
+}
+
+loadVolumePrefs();
+
+// ══════════════════════════════════════════════════════
+//  INPUT
+// ══════════════════════════════════════════════════════
+const keys = new Set();
+const justPressed = new Set();
+
+window.addEventListener('keydown', e => {
+  ensureAudio();
+  if (!keys.has(e.code)) justPressed.add(e.code);
+  keys.add(e.code);
+  if (['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code)) e.preventDefault();
+});
+window.addEventListener('keyup', e => keys.delete(e.code));
+window.addEventListener('pointerdown', ensureAudio, { once: true });
+
+function consumeJustPressed() {
+  const had = justPressed.size > 0;
+  justPressed.clear();
+  return had;
+}
+function anyJustPressed() { return justPressed.size > 0; }
+
+// ══════════════════════════════════════════════════════
+//  GAME STATE
+// ══════════════════════════════════════════════════════
+let gState = 'title'; // title | playing | dead | upgrade
+
+let level, health, maxHealth, tokens, shieldCount, projPower, projSpeed;
+let playerSpeedMult, shootCooldownMult;
+let projDamage, projPierce, tokenPickupRadius, tokenDropChance, hasRevive, lifestealChance;
+let enemyCount, totalKills, usedUpgrades;
+let unlockedUpgrades, lockedUpgrades, upgradesTakenCount;
+
+// Difficulty scaling — curse ladder. `permanentCurses` sticks for the rest of
+// the run; `activeCurse` applies to the current day only. `lastCurse` remembers
+// the most recent temporary curse so a multiple-of-10 day can promote it.
+let permanentCurses, activeCurse, lastCurse;
+// Per-day effective modifiers, recomputed in computeDifficulty().
+let enemyCountMult, enemySpeedMult, enemyHealthBonus, enemyDetectMult;
+let swarmActive = false;    // SWARM curse: red halls, every enemy hunts you
+let prevState = 'playing';  // gState to restore after unpausing
+
+let player, enemies, projectiles, tokenPickups, gate, shrine;
+let tileMap, rooms, floorMap;
+let particles = [];
+let screenFlash = 0;
+let camX = 0, camY = 0;
+let fogMap = null;
+let minimapCtx = null, minimapImageData = null;
+let showMinimap = true;
+
+// ══════════════════════════════════════════════════════
+//  DUNGEON GENERATION (BSP)
+// ══════════════════════════════════════════════════════
+function makeMap() {
+  return Array.from({length: MAP_H}, () => new Uint8Array(MAP_W).fill(1));
+}
+
+class BSPNode {
+  constructor(x, y, w, h) {
+    this.x = x; this.y = y; this.w = w; this.h = h;
+    this.left = null; this.right = null; this.room = null;
+  }
+}
+
+function bspSplit(node, depth) {
+  if (depth <= 0) return;
+  const MIN = 10;
+  const canH = node.w >= MIN * 2 + 2;
+  const canV = node.h >= MIN * 2 + 2;
+  if (!canH && !canV) return;
+
+  const doH = canH && canV ? Math.random() < 0.5 : canH;
+
+  if (doH) {
+    const lo = node.x + MIN + 1, hi = node.x + node.w - MIN - 1;
+    if (hi <= lo) return;
+    const sx = lo + Math.floor(Math.random() * (hi - lo));
+    node.left  = new BSPNode(node.x, node.y, sx - node.x, node.h);
+    node.right = new BSPNode(sx, node.y, node.w - (sx - node.x), node.h);
+  } else {
+    const lo = node.y + MIN + 1, hi = node.y + node.h - MIN - 1;
+    if (hi <= lo) return;
+    const sy = lo + Math.floor(Math.random() * (hi - lo));
+    node.left  = new BSPNode(node.x, node.y, node.w, sy - node.y);
+    node.right = new BSPNode(node.x, sy, node.w, node.h - (sy - node.y));
+  }
+
+  bspSplit(node.left,  depth - 1);
+  bspSplit(node.right, depth - 1);
+}
+
+function carveRooms(node, map) {
+  if (node.left && node.right) {
+    carveRooms(node.left,  map);
+    carveRooms(node.right, map);
+    connectCenters(node.left.room, node.right.room, map);
+    node.room = Math.random() < 0.5 ? node.left.room : node.right.room;
+    return;
+  }
+  const pad = 1;
+  const maxW = Math.min(node.w - pad * 2, 14);
+  const maxH = Math.min(node.h - pad * 2, 14);
+  const minW = 6, minH = 6;
+  if (maxW < minW || maxH < minH) { node.room = { x:0,y:0,w:1,h:1,cx:1,cy:1 }; return; }
+  const rw = minW + Math.floor(Math.random() * (maxW - minW + 1));
+  const rh = minH + Math.floor(Math.random() * (maxH - minH + 1));
+  const rx = node.x + pad + Math.floor(Math.random() * (node.w - pad*2 - rw + 1));
+  const ry = node.y + pad + Math.floor(Math.random() * (node.h - pad*2 - rh + 1));
+  node.room = { x: rx, y: ry, w: rw, h: rh, cx: rx + (rw >> 1), cy: ry + (rh >> 1) };
+  for (let y = ry; y < ry + rh; y++)
+    for (let x = rx; x < rx + rw; x++)
+      map[y][x] = 0;
+}
+
+function connectCenters(r1, r2, map) {
+  if (!r1 || !r2) return;
+  let x1 = r1.cx, y1 = r1.cy, x2 = r2.cx, y2 = r2.cy;
+  if (Math.random() < 0.5) {
+    hCorridor(map, x1, x2, y1);
+    vCorridor(map, y1, y2, x2);
+  } else {
+    vCorridor(map, y1, y2, x1);
+    hCorridor(map, x1, x2, y2);
+  }
+}
+
+function hCorridor(map, x1, x2, y) {
+  const lo = Math.min(x1,x2), hi = Math.max(x1,x2);
+  for (let x = lo; x <= hi; x++) {
+    if (y >= 0 && y < MAP_H) map[y][x] = 0;
+    if (y+1 >= 0 && y+1 < MAP_H) map[y+1][x] = 0;
+  }
+}
+
+function vCorridor(map, y1, y2, x) {
+  const lo = Math.min(y1,y2), hi = Math.max(y1,y2);
+  for (let y = lo; y <= hi; y++) {
+    if (x >= 0 && x < MAP_W) map[y][x] = 0;
+    if (x+1 >= 0 && x+1 < MAP_W) map[y][x+1] = 0;
+  }
+}
+
+function getLeafRooms(node) {
+  if (!node.left && !node.right) return node.room ? [node.room] : [];
+  return [...getLeafRooms(node.left), ...getLeafRooms(node.right)];
+}
+
+function generateDungeon() {
+  tileMap = makeMap();
+  const root = new BSPNode(1, 1, MAP_W - 2, MAP_H - 2);
+  bspSplit(root, 4);
+  carveRooms(root, tileMap);
+  rooms = getLeafRooms(root);
+  return rooms;
+}
+
+// Per-tile deterministic hash — stable so tiles don't flicker each frame
+function tileRand(tx, ty) {
+  let h = ((tx * 374761393) ^ (ty * 668265263)) | 0;
+  h ^= h >>> 13; h = Math.imul(h, 1274126177); h ^= h >>> 16;
+  return (h >>> 0) / 0xFFFFFFFF;
+}
+
+// Sparse floor tiles: a handful per room, mix of floor_01 / floor_02
+function buildFloorMap() {
+  floorMap = [];
+  for (let ty = 0; ty < MAP_H; ty++) {
+    floorMap[ty] = new Uint8Array(MAP_W);
+  }
+  for (const room of rooms) {
+    const count = 2 + Math.floor(Math.random() * 4); // 2–5 tiles per room
+    for (let i = 0; i < count; i++) {
+      const fx = room.x + Math.floor(Math.random() * room.w);
+      const fy = room.y + Math.floor(Math.random() * room.h);
+      if (tileMap[fy] && tileMap[fy][fx] === 0) {
+        floorMap[fy][fx] = Math.random() < 0.5 ? 1 : 2;
+      }
+    }
+  }
+}
+
+function initFog() {
+  fogMap = Array.from({length: MAP_H}, () => new Uint8Array(MAP_W));
+  if (!minimapCtx) {
+    const el = document.getElementById('minimap-canvas');
+    el.width  = MAP_W * MINI_TILE;
+    el.height = MAP_H * MINI_TILE;
+    minimapCtx = el.getContext('2d');
+    minimapImageData = minimapCtx.createImageData(MAP_W * MINI_TILE, MAP_H * MINI_TILE);
+  }
+}
+
+// ══════════════════════════════════════════════════════
+//  HELPERS
+// ══════════════════════════════════════════════════════
+function isWall(wx, wy) {
+  const tx = wx / TILE | 0, ty = wy / TILE | 0;
+  if (tx < 0 || ty < 0 || tx >= MAP_W || ty >= MAP_H) return true;
+  if (tileMap[ty][tx] === 1) return true;
+  return false;
+}
+
+function slideMove(ent, dx, dy) {
+  const m = ent.size * 0.88;
+  const nx = ent.x + dx;
+  if (!isWall(nx-m,ent.y-m) && !isWall(nx+m,ent.y-m) &&
+      !isWall(nx-m,ent.y+m) && !isWall(nx+m,ent.y+m)) ent.x = nx;
+  const ny = ent.y + dy;
+  if (!isWall(ent.x-m,ny-m) && !isWall(ent.x+m,ny-m) &&
+      !isWall(ent.x-m,ny+m) && !isWall(ent.x+m,ny+m)) ent.y = ny;
+}
+
+function spawnParticles(x, y, color, count) {
+  for (let i = 0; i < count; i++) {
+    const angle = Math.random() * Math.PI * 2;
+    const speed = 40 + Math.random() * 120;
+    particles.push({ x, y, vx: Math.cos(angle)*speed, vy: Math.sin(angle)*speed, life: 0.4 + Math.random()*0.3, maxLife: 0.7, color, r: 2+Math.random()*3 });
+  }
+}
+
+// ══════════════════════════════════════════════════════
+//  DIFFICULTY — CURSE LADDER
+// ══════════════════════════════════════════════════════
+// Baseline creeps up every day. Every 5th day draws a temporary curse for that
+// day only; every 10th day the last curse drawn becomes permanent and stacks.
+const CURSES = [
+  { id: 'SWARM',  name: 'SWARM',    desc: 'The halls run red — every enemy hunts you at once', apply() { enemyCountMult *= 1.4; } },
+  { id: 'FRENZY', name: 'FRENZY',   desc: 'The dead move with unnatural speed',      apply() { enemySpeedMult *= 1.45; } },
+  { id: 'TANK',   name: 'BONELORD', desc: 'Enemies are far harder to put down',      apply() { enemyHealthBonus += 1; } },
+];
+
+let pendingBanner = null;
+
+function computeDifficulty() {
+  // Baseline ramp
+  enemyCountMult   = 1;
+  enemySpeedMult   = 1 + (level - 1) * 0.02;        // gentle creep
+  enemySpeedMult   = Math.min(enemySpeedMult, 1.6); // cap the baseline part
+  enemyHealthBonus = Math.floor(level / 12);        // tougher deep down
+  enemyDetectMult  = 1;
+
+  pendingBanner = null;
+
+  // Curse events on 5th / 10th days
+  if (level > 0 && level % 10 === 0) {
+    // Promote the last temporary curse to permanent
+    if (lastCurse && !permanentCurses.some(c => c.id === lastCurse.id)) {
+      permanentCurses.push(lastCurse);
+      pendingBanner = { kicker: '☠ PERMANENT CURSE', name: lastCurse.name,
+                        desc: lastCurse.desc + ' — forever now' };
+    }
+    activeCurse = null;
+  } else if (level > 0 && level % 5 === 0) {
+    // Draw a fresh temporary curse not already permanent
+    const pool = CURSES.filter(c => !permanentCurses.some(p => p.id === c.id));
+    if (pool.length) {
+      activeCurse = pool[Math.floor(Math.random() * pool.length)];
+      lastCurse = activeCurse;
+      pendingBanner = { kicker: '⚠ CURSE — TODAY ONLY', name: activeCurse.name,
+                        desc: activeCurse.desc };
+    } else {
+      activeCurse = null;
+    }
+  } else {
+    activeCurse = null;
+  }
+
+  // Apply permanent + active curse effects to the day's modifiers
+  for (const c of permanentCurses) c.apply();
+  if (activeCurse) activeCurse.apply();
+
+  // SWARM turns the halls red and makes every enemy hunt you regardless of range
+  swarmActive = permanentCurses.some(c => c.id === 'SWARM') ||
+                (activeCurse && activeCurse.id === 'SWARM');
+}
+
+function updateSwarmVisual() {
+  const el = document.getElementById('swarm-overlay');
+  if (el) el.style.display = swarmActive ? 'block' : 'none';
+}
+
+function flushBanner() {
+  if (!pendingBanner) return;
+  const b = pendingBanner; pendingBanner = null;
+  document.getElementById('curse-kicker').innerHTML = b.kicker;
+  document.getElementById('curse-name').textContent = b.name;
+  document.getElementById('curse-desc').textContent = b.desc;
+  const el = document.getElementById('curse-banner');
+  el.classList.remove('show');
+  void el.offsetWidth;       // restart the CSS animation
+  el.classList.add('show');
+}
+
+// ══════════════════════════════════════════════════════
+//  INIT LEVEL
+// ══════════════════════════════════════════════════════
+function initLevel() {
+  enemies = []; projectiles = []; tokenPickups = []; particles = [];
+  gate = null; shrine = null; enemyCount = 0;
+
+  const roomList = generateDungeon();
+  if (!roomList.length) { initLevel(); return; }
+
+  buildFloorMap();
+  initFog();
+
+  // Player in first room
+  const startRoom = roomList[0];
+  player = {
+    x: (startRoom.cx + 0.5) * TILE,
+    y: (startRoom.cy + 0.5) * TILE,
+    size: PLAYER_SIZE,
+    lastDirX: 1, lastDirY: 0,
+    invincible: 0, invincibleFlash: 0,
+    shootCooldown: 0, shootCooldownMax: 0,
+    kx: 0, ky: 0, kTimer: 0,
+    animFrame: 0, animTimer: 0, facing: 1,
+    walking: false,
+  };
+
+  // Enemies + tokens in remaining rooms
+  for (let i = 1; i < roomList.length; i++) {
+    const r = roomList[i];
+    // Baseline enemy count grows with the day, then scaled by curses (capped).
+    const baseMax = 2 + Math.floor(level * 0.4);
+    let numE = 1 + Math.floor(Math.random() * baseMax);
+    numE = Math.max(1, Math.min(8, Math.round(numE * enemyCountMult)));
+    const eHp = 2 + enemyHealthBonus;
+    for (let e = 0; e < numE; e++) {
+      const ex = (r.x + 1 + Math.random() * (r.w - 2)) * TILE + TILE/2;
+      const ey = (r.y + 1 + Math.random() * (r.h - 2)) * TILE + TILE/2;
+      enemies.push({
+        x: ex, y: ey, size: ENEMY_SIZE,
+        health: eHp, maxHealth: eHp,
+        chasing: false,
+        dead: false, deadTimer: 0,
+        kx: 0, ky: 0, kTimer: 0,
+        animTimer: 0, animFrame: 0,
+        facing: 1, faceTimer: 0,
+        room: r,
+        wanderX: ex, wanderY: ey,
+        wanderTimer: Math.random() * 1.5,
+        lastX: ex, lastY: ey, moveCheck: Math.random() * 0.25,
+        escapeTimer: 0, escapeAngle: 0,
+      });
+      enemyCount++;
+    }
+    const numC = 1 + Math.floor(Math.random() * 2);
+    for (let c = 0; c < numC; c++) {
+      tokenPickups.push({
+        x: (r.x + 1 + Math.random()*(r.w-2) + 0.5)*TILE,
+        y: (r.y + 1 + Math.random()*(r.h-2) + 0.5)*TILE,
+        bob: Math.random() * Math.PI * 2,
+      });
+    }
+  }
+
+  // Gate in last room
+  const lastR = roomList[roomList.length - 1];
+  gate = { x: (lastR.cx+0.5)*TILE, y: (lastR.cy+0.5)*TILE, pulse: 0 };
+
+  // Shrine every 3rd level
+  if (level % 3 === 0 && roomList.length > 2) {
+    const ri = 1 + Math.floor(Math.random() * (roomList.length - 1));
+    const sr = roomList[ri];
+    shrine = { x: (sr.cx+0.5)*TILE, y: (sr.cy+0.5)*TILE, used: false, pulse: 0 };
+  }
+
+  updateSwarmVisual();
+  updateHUD();
+}
+
+function startRun() {
+  level = 1; health = 3; maxHealth = 3; tokens = 0;
+  shieldCount = 0; projPower = 1;
+  projSpeed = PROJ_SPEED_BASE;
+  playerSpeedMult = 1.0;
+  shootCooldownMult = 1.0;
+  projDamage = 1; projPierce = 0;
+  tokenPickupRadius = TILE;
+  tokenDropChance = 0.45;
+  hasRevive = false;
+  lifestealChance = 0;
+  totalKills = 0;
+  usedUpgrades = [];
+  upgradesTakenCount = 0;
+  unlockedUpgrades = ALL_UPGRADES.slice(0, INITIAL_UNLOCK_COUNT);
+  lockedUpgrades = ALL_UPGRADES.slice(INITIAL_UNLOCK_COUNT);
+  permanentCurses = []; activeCurse = null; lastCurse = null;
+  computeDifficulty();
+  initLevel();
+  flushBanner();
+}
+
+// ══════════════════════════════════════════════════════
+//  HUD
+// ══════════════════════════════════════════════════════
+function updateHUD() {
+  const heartsEl = document.getElementById('hearts');
+  heartsEl.innerHTML = '';
+  for (let i = 0; i < maxHealth; i++) {
+    const img = document.createElement('img');
+    img.src = 'sprites/health.svg';
+    img.style.opacity = i < health ? '1' : '0.15';
+    heartsEl.appendChild(img);
+  }
+  const shEl = document.getElementById('shield-display');
+  shEl.style.display = shieldCount > 0 ? 'flex' : 'none';
+  document.getElementById('shield-val').textContent = shieldCount;
+  document.getElementById('level-val').textContent = level;
+  document.getElementById('token-val').textContent = tokens;
+  document.getElementById('gate-hint').style.display = enemyCount <= 0 ? 'block' : 'none';
+}
+
+// ══════════════════════════════════════════════════════
+//  UPDATE PLAYER
+// ══════════════════════════════════════════════════════
+function updatePlayer(dt) {
+  if (player.invincible > 0) { player.invincible -= dt; player.invincibleFlash += dt; }
+  if (player.shootCooldown > 0) player.shootCooldown -= dt;
+  if (player.kTimer > 0) {
+    player.kTimer -= dt;
+    const len = Math.hypot(player.kx, player.ky);
+    if (len > 0) {
+      const dec = 2000 * dt;
+      const nl = Math.max(0, len - dec);
+      player.kx = player.kx / len * nl;
+      player.ky = player.ky / len * nl;
+    }
+  }
+
+  let dx = 0, dy = 0;
+  if (keys.has('ArrowLeft')  || keys.has('KeyA')) dx -= 1;
+  if (keys.has('ArrowRight') || keys.has('KeyD')) dx += 1;
+  if (keys.has('ArrowUp')    || keys.has('KeyW')) dy -= 1;
+  if (keys.has('ArrowDown')  || keys.has('KeyS')) dy += 1;
+
+  if (dx !== 0 && dy !== 0) { dx *= 0.707; dy *= 0.707; }
+  if (dx !== 0 || dy !== 0) {
+    player.lastDirX = dx; player.lastDirY = dy;
+    if (dx < 0) player.facing = -1; else if (dx > 0) player.facing = 1;
+  }
+  player.walking = (dx !== 0 || dy !== 0);
+
+  // 3-frame animation (walk faster, idle slower)
+  player.animTimer += dt;
+  const frameTime = player.walking ? 0.12 : 0.4;
+  if (player.animTimer >= frameTime) {
+    player.animTimer = 0;
+    player.animFrame = (player.animFrame + 1) % 3;
+  }
+
+  const spd = BASE_PLAYER_SPEED * playerSpeedMult;
+  const moveX = dx * spd * dt + (player.kTimer > 0 ? player.kx * dt : 0);
+  const moveY = dy * spd * dt + (player.kTimer > 0 ? player.ky * dt : 0);
+  slideMove(player, moveX, moveY);
+
+  const cd = BASE_SHOOT_COOLDOWN * shootCooldownMult;
+  if ((justPressed.has('Space') || justPressed.has('KeyJ')) && player.shootCooldown <= 0) {
+    for (let i = 0; i < projPower; i++) {
+      const spread = projPower > 1 ? (i/(projPower-1) - 0.5) * 0.25 : 0;
+      const angle = Math.atan2(player.lastDirY, player.lastDirX) + spread;
+      projectiles.push({
+        x: player.x, y: player.y,
+        dx: Math.cos(angle), dy: Math.sin(angle),
+        fromPlayer: true, dist: 0, pierce: projPierce,
+      });
+    }
+    player.shootCooldown = cd;
+    player.shootCooldownMax = cd;
+    SFX.shoot();
+  }
+
+  tokenPickups = tokenPickups.filter(c => {
+    if (Math.hypot(player.x - c.x, player.y - c.y) < tokenPickupRadius) {
+      tokens++; updateHUD();
+      spawnParticles(c.x, c.y, '#ffffff', 6);
+      SFX.pickup();
+      return false;
+    }
+    return true;
+  });
+
+  if (shrine && !shrine.used) {
+    if (Math.hypot(player.x - shrine.x, player.y - shrine.y) < TILE * 1.5) {
+      openShrineChoice();
+    }
+  }
+
+  if (gate && enemyCount <= 0) {
+    gate.pulse += dt * 3;
+    if (!gate.triggered && Math.hypot(player.x - gate.x, player.y - gate.y) < TILE * 1.3) {
+      gate.triggered = true;
+      SFX.gate();
+      advanceLevel();
+    }
+  }
+}
+
+// ══════════════════════════════════════════════════════
+//  UPDATE ENEMIES
+// ══════════════════════════════════════════════════════
+
+// Probe up to 7 directions (straight, then ±45°, ±90°, ±135°) and return
+// the first angle that isn't wall-blocked. Falls back to desiredAngle.
+function probeDirection(e, desiredAngle) {
+  const m    = e.size * 0.7;
+  const step = TILE;
+  const offsets = [0, Math.PI/4, -Math.PI/4, Math.PI/2, -Math.PI/2, 3*Math.PI/4, -3*Math.PI/4];
+  for (const off of offsets) {
+    const a  = desiredAngle + off;
+    const px = e.x + Math.cos(a) * step;
+    const py = e.y + Math.sin(a) * step;
+    if (!isWall(px-m, py-m) && !isWall(px+m, py-m) &&
+        !isWall(px-m, py+m) && !isWall(px+m, py+m)) return a;
+  }
+  return desiredAngle;
+}
+
+function pickWanderTarget(e) {
+  const r = e.room;
+  e.wanderX = (r.x + 1 + Math.random() * Math.max(r.w - 2, 1)) * TILE + TILE / 2;
+  e.wanderY = (r.y + 1 + Math.random() * Math.max(r.h - 2, 1)) * TILE + TILE / 2;
+  e.wanderTimer = 1.5 + Math.random() * 2.5;
+}
+
+// Boids-style separation: a unit-ish push away from any nearby enemy so the
+// pack spreads out instead of stacking on the same pixel.
+function separation(e) {
+  let sx = 0, sy = 0;
+  const R = ENEMY_SIZE * 2.4;
+  const R2 = R * R;
+  for (const o of enemies) {
+    if (o === e || o.dead) continue;
+    const dx = e.x - o.x, dy = e.y - o.y;
+    const d2 = dx * dx + dy * dy;
+    if (d2 > 0.001 && d2 < R2) {
+      const d = Math.sqrt(d2);
+      const f = (R - d) / R;           // stronger the closer they are
+      sx += (dx / d) * f; sy += (dy / d) * f;
+    }
+  }
+  return { sx, sy };
+}
+
+// Only flip the sprite's facing after a short lock, and only for a clear
+// horizontal intent — stops the left/right jitter when steering.
+function updateFacing(e, vx, dt) {
+  e.faceTimer -= dt;
+  const want = vx < -0.25 ? -1 : vx > 0.25 ? 1 : e.facing;
+  if (want !== e.facing && e.faceTimer <= 0) {
+    e.facing = want;
+    e.faceTimer = 0.3;
+  }
+}
+
+function updateEnemies(dt) {
+  for (const e of enemies) {
+    if (e.dead) { e.deadTimer -= dt; continue; }
+
+    if (e.kTimer > 0) {
+      e.kTimer -= dt;
+      const len = Math.hypot(e.kx, e.ky);
+      if (len > 0) {
+        const dec = 2000 * dt;
+        const nl  = Math.max(0, len - dec);
+        e.kx = e.kx / len * nl; e.ky = e.ky / len * nl;
+      }
+      slideMove(e, e.kx * dt, e.ky * dt);
+      continue;
+    }
+
+    const d = Math.hypot(player.x - e.x, player.y - e.y);
+    // SWARM: everyone hunts you. Otherwise, aggro on line-of-proximity.
+    if (swarmActive || d < ENEMY_DETECT_RANGE * enemyDetectMult) e.chasing = true;
+    if (e.escapeTimer > 0) e.escapeTimer -= dt;
+
+    if (e.chasing && d > 2) {
+      // Base heading: normally straight at the player. If we're wedged in a
+      // corner (see stuck-check below), briefly aim along an escape angle.
+      const base = e.escapeTimer > 0
+        ? e.escapeAngle
+        : Math.atan2(player.y - e.y, player.x - e.x);
+      const moveAngle = probeDirection(e, base);
+
+      // Combine steering with separation, then renormalize to a heading.
+      let vx = Math.cos(moveAngle), vy = Math.sin(moveAngle);
+      const sep = separation(e);
+      vx += sep.sx * 0.9; vy += sep.sy * 0.9;
+      const vl = Math.hypot(vx, vy) || 1; vx /= vl; vy /= vl;
+
+      const spd = ENEMY_BASE_SPEED * enemySpeedMult * dt;
+      slideMove(e, vx * spd, vy * spd);
+      updateFacing(e, vx, dt);
+      e.animTimer += dt;
+      if (e.animTimer >= 0.18) { e.animTimer = 0; e.animFrame = (e.animFrame + 1) % 3; }
+
+    } else if (!e.chasing) {
+      // Idle wander: drift slowly between random spots in the spawn room
+      e.wanderTimer -= dt;
+      const wx = e.wanderX - e.x, wy = e.wanderY - e.y;
+      if (Math.hypot(wx, wy) < 6 || e.wanderTimer <= 0) {
+        pickWanderTarget(e);
+      } else {
+        const moveAngle = probeDirection(e, Math.atan2(wy, wx));
+        let vx = Math.cos(moveAngle), vy = Math.sin(moveAngle);
+        const sep = separation(e);
+        vx += sep.sx * 0.7; vy += sep.sy * 0.7;
+        const vl = Math.hypot(vx, vy) || 1; vx /= vl; vy /= vl;
+        const spd = ENEMY_BASE_SPEED * enemySpeedMult * 0.35 * dt;
+        slideMove(e, vx * spd, vy * spd);
+        updateFacing(e, vx, dt);
+        e.animTimer += dt;
+        if (e.animTimer >= 0.28) { e.animTimer = 0; e.animFrame = (e.animFrame + 1) % 3; }
+      }
+    }
+
+    // Stuck-in-a-corner detection: if a chasing enemy has barely moved over a
+    // short window, kick off an escape heading roughly sideways from the player.
+    e.moveCheck += dt;
+    if (e.moveCheck >= 0.25) {
+      const traveled = Math.hypot(e.x - e.lastX, e.y - e.lastY);
+      if (e.chasing && e.escapeTimer <= 0 && traveled < 4) {
+        const toPlayer = Math.atan2(player.y - e.y, player.x - e.x);
+        const side = Math.random() < 0.5 ? 1 : -1;
+        e.escapeAngle = toPlayer + side * (Math.PI / 2 + Math.random() * Math.PI / 4);
+        e.escapeTimer = 0.45;
+      }
+      e.lastX = e.x; e.lastY = e.y; e.moveCheck = 0;
+    }
+
+    if (d < PLAYER_SIZE + ENEMY_SIZE - 4 && player.invincible <= 0) {
+      hurtPlayer(e.x, e.y, 1);
+      const nx = (e.x - player.x) / Math.max(d, 1), ny = (e.y - player.y) / Math.max(d, 1);
+      e.kx = nx * 400; e.ky = ny * 400; e.kTimer = 0.12;
+    }
+  }
+  enemies = enemies.filter(e => !e.dead || e.deadTimer > 0);
+}
+
+// ══════════════════════════════════════════════════════
+//  UPDATE PROJECTILES
+// ══════════════════════════════════════════════════════
+function updateProjectiles(dt) {
+  projectiles = projectiles.filter(p => {
+    p.x += p.dx * projSpeed * dt;
+    p.y += p.dy * projSpeed * dt;
+    p.dist += projSpeed * dt;
+
+    if (isWall(p.x, p.y) || p.dist > MAX_PROJ_DIST) {
+      spawnParticles(p.x, p.y, '#ffffff', 3);
+      return false;
+    }
+
+    if (p.fromPlayer) {
+      for (const e of enemies) {
+        if (e.dead) continue;
+        if (p.hitEnemies && p.hitEnemies.has(e)) continue;
+        if (Math.hypot(p.x - e.x, p.y - e.y) < ENEMY_SIZE + PROJ_SIZE) {
+          damageEnemy(e, p.x, p.y);
+          spawnParticles(p.x, p.y, '#ffffff', 5);
+          if (p.pierce > 0) {
+            p.pierce--;
+            if (!p.hitEnemies) p.hitEnemies = new Set();
+            p.hitEnemies.add(e);
+            return true;
+          }
+          return false;
+        }
+      }
+    }
+    return true;
+  });
+}
+
+// ══════════════════════════════════════════════════════
+//  PARTICLES
+// ══════════════════════════════════════════════════════
+function updateParticles(dt) {
+  particles = particles.filter(p => {
+    p.x += p.vx * dt; p.y += p.vy * dt;
+    p.vx *= 1 - 4*dt; p.vy *= 1 - 4*dt;
+    p.life -= dt;
+    return p.life > 0;
+  });
+}
+
+// ══════════════════════════════════════════════════════
+//  FOG OF WAR
+// ══════════════════════════════════════════════════════
+function updateFog() {
+  if (!fogMap) return;
+  const txi = player.x / TILE | 0;
+  const tyi = player.y / TILE | 0;
+  const r2  = MINI_VISION * MINI_VISION;
+  for (let dy = -MINI_VISION; dy <= MINI_VISION; dy++) {
+    for (let dx = -MINI_VISION; dx <= MINI_VISION; dx++) {
+      if (dx*dx + dy*dy > r2) continue;
+      const nx = txi + dx, ny = tyi + dy;
+      if (nx >= 0 && ny >= 0 && nx < MAP_W && ny < MAP_H) fogMap[ny][nx] = 1;
+    }
+  }
+}
+
+function renderMinimap() {
+  if (!showMinimap || !fogMap || !minimapCtx) return;
+  const mw   = MAP_W * MINI_TILE;
+  const mh   = MAP_H * MINI_TILE;
+  const data = minimapImageData.data;
+  const ptx  = player.x / TILE;
+  const pty  = player.y / TILE;
+  const r2   = MINI_VISION * MINI_VISION;
+
+  for (let ty = 0; ty < MAP_H; ty++) {
+    for (let tx = 0; tx < MAP_W; tx++) {
+      let r = 0, g = 0, b = 0, a = 0;
+      if (fogMap[ty][tx]) {
+        const dx = tx - ptx, dy = ty - pty;
+        const vis  = dx*dx + dy*dy <= r2;
+        const wall = tileMap[ty][tx] === 1;
+        r = g = b = vis ? (wall ? 65 : 140) : (wall ? 18 : 45);
+        a = 255;
+      }
+      for (let py = 0; py < MINI_TILE; py++) {
+        for (let px = 0; px < MINI_TILE; px++) {
+          const i = ((ty * MINI_TILE + py) * mw + (tx * MINI_TILE + px)) * 4;
+          data[i] = r; data[i+1] = g; data[i+2] = b; data[i+3] = a;
+        }
+      }
+    }
+  }
+
+  // Gate marker — blinks when all enemies cleared and tile explored
+  if (gate && enemyCount <= 0) {
+    const gtx = gate.x / TILE | 0, gty = gate.y / TILE | 0;
+    if (fogMap[gty]?.[gtx] && Math.sin(Date.now() / 200) > 0) {
+      const gx = gtx * MINI_TILE | 0, gy = gty * MINI_TILE | 0;
+      for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+        const nx = gx+dx, ny = gy+dy;
+        if (nx >= 0 && ny >= 0 && nx < mw && ny < mh) {
+          const i = (ny * mw + nx) * 4;
+          data[i] = data[i+1] = data[i+2] = 255; data[i+3] = 255;
+        }
+      }
+    }
+  }
+
+  // Player marker
+  const ppx = ptx * MINI_TILE | 0, ppy = pty * MINI_TILE | 0;
+  for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+    const nx = ppx+dx, ny = ppy+dy;
+    if (nx >= 0 && ny >= 0 && nx < mw && ny < mh) {
+      const i = (ny * mw + nx) * 4;
+      data[i] = data[i+1] = data[i+2] = 255; data[i+3] = 255;
+    }
+  }
+
+  minimapCtx.putImageData(minimapImageData, 0, 0);
+}
+
+// ══════════════════════════════════════════════════════
+//  ACTIONS
+// ══════════════════════════════════════════════════════
+function hurtPlayer(fromX, fromY, amount) {
+  if (player.invincible > 0) return;
+  if (shieldCount > 0) {
+    shieldCount--;
+    player.invincible = INVINCIBLE_TIME * 0.5;
+    spawnParticles(player.x, player.y, '#ffffff', 8);
+    SFX.shield();
+    updateHUD(); return;
+  }
+  health = Math.max(0, health - amount);
+  player.invincible = INVINCIBLE_TIME;
+  player.invincibleFlash = 0;
+  const d = Math.max(Math.hypot(player.x - fromX, player.y - fromY), 1);
+  player.kx = (player.x - fromX) / d * 700;
+  player.ky = (player.y - fromY) / d * 700;
+  player.kTimer = 0.12;
+  screenFlash = 0.3;
+  spawnParticles(player.x, player.y, '#ffffff', 10);
+  updateHUD();
+  if (health <= 0) {
+    if (hasRevive) {
+      hasRevive = false;
+      health = 1;
+      player.invincible = INVINCIBLE_TIME * 3;
+      spawnParticles(player.x, player.y, '#ffffff', 20);
+      SFX.revive();
+      updateHUD();
+      return;
+    }
+    die();
+  } else {
+    SFX.hurt();
+  }
+}
+
+function damageEnemy(e, fromX, fromY) {
+  e.health -= projDamage;
+  const d = Math.max(Math.hypot(e.x - fromX, e.y - fromY), 1);
+  e.kx = (e.x - fromX) / d * 450;
+  e.ky = (e.y - fromY) / d * 450;
+  e.kTimer = 0.12;
+  if (e.health <= 0) {
+    e.dead = true; e.deadTimer = 0.5;
+    enemyCount--;
+    totalKills++;
+    spawnParticles(e.x, e.y, '#ffffff', 12);
+    if (Math.random() < tokenDropChance) tokenPickups.push({ x: e.x, y: e.y, bob: 0 });
+    if (lifestealChance > 0 && Math.random() < lifestealChance && health < maxHealth) {
+      health = Math.min(health + 1, maxHealth);
+      spawnParticles(player.x, player.y, '#ffffff', 8);
+    }
+    SFX.kill();
+    updateHUD();
+  } else {
+    SFX.hit();
+  }
+}
+
+// Walking into a shrine opens a choice: heal/grow, or empower a power you own.
+function openShrineChoice() {
+  shrine.used = true;               // consume on contact so it can't re-trigger
+  prevState = 'playing';
+  gState = 'shrine';
+  document.getElementById('settings-btn').style.display = 'none';
+
+  const ownable = usedUpgrades.length > 0;
+  document.getElementById('shrine-empower').classList.toggle('disabled', !ownable);
+  document.getElementById('shrine-empower-desc').innerHTML = ownable
+    ? 'Strengthen a power<br>you already own'
+    : 'You own no powers<br>to strengthen yet';
+  document.getElementById('shrine-choice').style.display = 'flex';
+}
+
+function chooseShrine(kind) {
+  if (kind === 'empower' && usedUpgrades.length === 0) return;   // disabled option
+  if (kind === 'health') {
+    maxHealth++;
+    health = maxHealth;             // +1 slot and top off
+  } else {
+    // Re-apply a random power the player already owns, leveling it up
+    const name = usedUpgrades[Math.floor(Math.random() * usedUpgrades.length)];
+    const upg = ALL_UPGRADES.find(u => u.name === name);
+    if (upg) upg.apply();
+  }
+  if (shrine) spawnParticles(shrine.x, shrine.y, '#ffffff', 14);
+  SFX.shrine();
+  document.getElementById('shrine-choice').style.display = 'none';
+  document.getElementById('settings-btn').style.display = 'flex';
+  keys.clear(); justPressed.clear();
+  gState = 'playing';
+  updateHUD();
+}
+
+function die() {
+  gState = 'dead';
+  tokens = 0;   // the dungeon keeps what you couldn't spend
+  document.getElementById('final-level').textContent = level;
+  document.getElementById('final-kills').textContent = totalKills;
+
+  const counts = new Map();
+  for (const name of usedUpgrades) counts.set(name, (counts.get(name) || 0) + 1);
+  const upgradesEl = document.getElementById('final-upgrades');
+  upgradesEl.textContent = counts.size
+    ? [...counts.entries()].map(([name, n]) => n > 1 ? `${name} x${n}` : name).join(', ')
+    : 'None';
+
+  document.getElementById('hud').style.display = 'none';
+  document.getElementById('minimap-wrap').style.display = 'none';
+  document.getElementById('settings-btn').style.display = 'none';
+  document.getElementById('swarm-overlay').style.display = 'none';
+  document.getElementById('death-screen').style.display = 'flex';
+  SFX.gameOver();
+}
+
+function advanceLevel() {
+  level++;
+  computeDifficulty();
+  updateHUD();
+  showUpgradeScreen();   // a reward every day; banner flushes when the screen closes
+}
+
+// ══════════════════════════════════════════════════════
+//  UPGRADE SCREEN
+// ══════════════════════════════════════════════════════
+const INITIAL_UNLOCK_COUNT = 6;   // upgrades available in the pool from the start
+
+// Each power carries a base `cost` that reflects its strength: cheap minor
+// boosts, expensive game-changers you save up for. All prices then scale with
+// the day, so deep runs reward hoarding tokens for the heavy hitters.
+const ALL_UPGRADES = [
+  // -- starting pool --
+  { name: 'Vitality',        icon: '+HP', cost: 8,  desc: '+1 Max Health\nRestores 1 HP',       apply() { maxHealth++; health = Math.min(health+1, maxHealth); } },
+  { name: 'Swift Bolt',      icon: '>>',  cost: 4,  desc: 'Projectiles\ntravel faster',         apply() { projSpeed = Math.min(projSpeed+80, 650); } },
+  { name: 'Iron Will',       icon: '[]',  cost: 6,  desc: 'Gain 1 Shield\nAbsorbs a hit',       apply() { shieldCount++; } },
+  { name: 'Swiftness',       icon: '~~',  cost: 6,  desc: 'Move 20%\nfaster',                   apply() { playerSpeedMult = Math.min(playerSpeedMult+0.2, 1.8); } },
+  { name: 'Power Shot',      icon: '**',  cost: 10, desc: 'Shoot an extra\nprojectile',         apply() { projPower = Math.min(projPower+1, 3); } },
+  { name: 'Quick Draw',      icon: '!!',  cost: 7,  desc: 'Shoot 20%\nfaster',                  apply() { shootCooldownMult = Math.max(shootCooldownMult-0.2, 0.35); } },
+  // -- locked at run start, unlocked via "Study a Relic" --
+  { name: 'Treasure',        icon: '$$',  cost: 3,  desc: '+10 Tokens\nbecause why not',        apply() { tokens += 10; } },
+  { name: 'Double Tap',      icon: '##',  cost: 13, desc: 'Fire 2 shots\nper press',            apply() { projPower = Math.min(projPower+1, 3); shootCooldownMult = Math.max(shootCooldownMult-0.1, 0.35); } },
+  { name: 'Piercing Rounds', icon: '>|',  cost: 9,  desc: 'Shots pierce\n1 extra enemy',        apply() { projPierce = Math.min(projPierce+1, 2); } },
+  { name: 'Magnetism',       icon: '<>',  cost: 4,  desc: 'Bigger token\npickup radius',        apply() { tokenPickupRadius = Math.min(tokenPickupRadius+24, TILE*2.5); } },
+  { name: 'Lucky Find',      icon: '$!',  cost: 5,  desc: 'Enemies drop\ntokens more often',    apply() { tokenDropChance = Math.min(tokenDropChance+0.15, 0.9); } },
+  { name: 'Second Wind',     icon: '<3',  cost: 15, desc: 'Survive one fatal\nhit at 1 HP',     apply() { hasRevive = true; } },
+  { name: 'Vampiric Strike', icon: '%%',  cost: 11, desc: 'Chance to heal\non a kill',          apply() { lifestealChance = Math.min(lifestealChance+0.2, 0.6); } },
+  { name: 'Overcharge',      icon: '^^',  cost: 12, desc: 'Projectiles deal\n+1 damage',        apply() { projDamage = Math.min(projDamage+1, 4); } },
+];
+
+// Price of a specific power on the current day: its base cost inflated as the
+// run goes deeper (about +10% per day). Expensive powers get truly expensive.
+function upgradeCost(upg) {
+  return Math.round(upg.cost * (1 + (level - 1) * 0.10));
+}
+
+function sampleUpgrades(arr, n) {
+  const copy = [...arr];
+  for (let i = copy.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [copy[i], copy[j]] = [copy[j], copy[i]];
+  }
+  return copy.slice(0, n);
+}
+
+function closeUpgradeScreen() {
+  document.getElementById('upgrade-screen').style.display = 'none';
+  gState = 'playing';
+  document.getElementById('hud').style.display = 'flex';
+  document.getElementById('minimap-wrap').style.display = showMinimap ? 'block' : 'none';
+  document.getElementById('settings-btn').style.display = 'flex';
+  updateHUD();
+  initLevel();
+  flushBanner();
+}
+
+let currentUpgradePool = [];   // sampled once per screen so Heal Up can refresh without rerolling
+
+function showUpgradeScreen() {
+  gState = 'upgrade';
+  document.getElementById('hud').style.display = 'none';
+  document.getElementById('minimap-wrap').style.display = 'none';
+  document.getElementById('settings-btn').style.display = 'none';
+  document.getElementById('swarm-overlay').style.display = 'none';
+  document.getElementById('upgrade-screen').style.display = 'flex';
+  currentUpgradePool = sampleUpgrades(unlockedUpgrades, 3);
+  renderUpgradeCards();
+}
+
+function renderUpgradeCards() {
+  document.getElementById('upgrade-token-balance').textContent = `Tokens: ${tokens}`;
+  const grid = document.getElementById('upgrade-grid');
+  grid.innerHTML = '';
+
+  // The three rolled powers — buying one applies it and continues to next day.
+  for (const upg of currentUpgradePool) {
+    const cost = upgradeCost(upg);
+    const affordable = tokens >= cost;
+    const card = document.createElement('div');
+    card.className = 'upgrade-card' + (affordable ? '' : ' disabled');
+    card.innerHTML = `<span class="icon">${upg.icon}</span><span class="name">${upg.name}</span><span class="desc">${upg.desc.replace('\n','<br>')}</span><span class="cost">${cost} tokens</span>`;
+    if (affordable) {
+      card.onclick = () => {
+        tokens -= cost;
+        upg.apply();
+        usedUpgrades.push(upg.name);
+        upgradesTakenCount++;
+        SFX.upgrade();
+        closeUpgradeScreen();
+      };
+    }
+    grid.appendChild(card);
+  }
+
+  // Heal Up — costs 75% of what you're carrying and does NOT close the screen,
+  // so you can top off AND still afford a power. In deep runs powers cost far
+  // more, so spending 75% here means saving longer for the big buys.
+  if (health < maxHealth && tokens > 0) {
+    const hcost = Math.ceil(tokens * 0.75);
+    const card = document.createElement('div');
+    card.className = 'upgrade-card';
+    card.innerHTML = `<span class="icon">&#10084;</span><span class="name">Heal Up</span><span class="desc">Restore all health<br>(keeps the screen open)</span><span class="cost">${hcost} tokens</span>`;
+    card.onclick = () => {
+      tokens -= hcost;
+      health = maxHealth;
+      SFX.shrine();
+      updateHUD();
+      renderUpgradeCards();   // stay open, refresh prices/affordability
+    };
+    grid.appendChild(card);
+  }
+
+  // Study a Relic — skip the stat and unlock a brand-new power into the pool.
+  // Costs everything you're carrying.
+  if (lockedUpgrades.length > 0) {
+    const canAfford = tokens > 0;
+    const card = document.createElement('div');
+    card.className = 'upgrade-card' + (canAfford ? '' : ' disabled');
+    card.innerHTML = `<span class="icon">?!</span><span class="name">Study a Relic</span><span class="desc">Unlock a random new<br>power for future runs</span><span class="cost">Costs all tokens</span>`;
+    if (canAfford) {
+      card.onclick = () => {
+        tokens = 0;
+        const idx = Math.floor(Math.random() * lockedUpgrades.length);
+        const unlocked = lockedUpgrades.splice(idx, 1)[0];
+        unlockedUpgrades.push(unlocked);
+        SFX.studyRelic();
+        showRelicReveal(unlocked);   // reveal what was unlocked, then continue
+      };
+    }
+    grid.appendChild(card);
+  }
+}
+
+// Reveal the freshly-unlocked power before dropping back into the dungeon.
+function showRelicReveal(upg) {
+  document.getElementById('upgrade-screen').style.display = 'none';
+  document.getElementById('relic-icon').textContent = upg.icon;
+  document.getElementById('relic-name').textContent = upg.name;
+  document.getElementById('relic-desc').innerHTML = upg.desc.replace('\n', '<br>');
+  document.getElementById('relic-reveal').style.display = 'flex';
+}
+
+function dismissRelicReveal() {
+  document.getElementById('relic-reveal').style.display = 'none';
+  SFX.menu();
+  closeUpgradeScreen();
+}
+
+// ══════════════════════════════════════════════════════
+//  SCREEN MANAGEMENT
+// ══════════════════════════════════════════════════════
+function showTitleScreen() {
+  gState = 'title';
+  document.getElementById('title-screen').style.display = 'flex';
+  document.getElementById('hud').style.display = 'none';
+  document.getElementById('minimap-wrap').style.display = 'none';
+  document.getElementById('settings-btn').style.display = 'none';
+  document.getElementById('swarm-overlay').style.display = 'none';
+}
+
+function beginGame() {
+  document.getElementById('title-screen').style.display = 'none';
+  document.getElementById('death-screen').style.display = 'none';
+  document.getElementById('hud').style.display = 'flex';
+  document.getElementById('minimap-wrap').style.display = showMinimap ? 'block' : 'none';
+  document.getElementById('settings-btn').style.display = 'flex';
+  gState = 'playing';
+  ensureAudio();
+  startMusic();
+  startRun();
+}
+
+// ══════════════════════════════════════════════════════
+//  SETTINGS / PAUSE
+// ══════════════════════════════════════════════════════
+function openSettings() {
+  if (gState !== 'playing') return;
+  prevState = gState;
+  gState = 'paused';
+  document.getElementById('settings-screen').style.display = 'flex';
+}
+
+function closeSettings() {
+  document.getElementById('settings-screen').style.display = 'none';
+  keys.clear();          // drop any keys held while paused
+  justPressed.clear();
+  gState = prevState;
+}
+
+function initSettingsUI() {
+  const mSlider = document.getElementById('music-vol');
+  const sSlider = document.getElementById('sfx-vol');
+  const mVal = document.getElementById('music-vol-val');
+  const sVal = document.getElementById('sfx-vol-val');
+
+  mSlider.value = Math.round(musicVolume * 100);
+  sSlider.value = Math.round(sfxVolume * 100);
+  mVal.textContent = mSlider.value;
+  sVal.textContent = sSlider.value;
+
+  mSlider.addEventListener('input', () => {
+    musicVolume = mSlider.value / 100;
+    mVal.textContent = mSlider.value;
+    applyMusicVolume();
+    localStorage.setItem('dd_music', musicVolume);
+  });
+  sSlider.addEventListener('input', () => {
+    sfxVolume = sSlider.value / 100;
+    sVal.textContent = sSlider.value;
+    applySfxVolume();
+    localStorage.setItem('dd_sfx', sfxVolume);
+    SFX.menu();   // audible feedback while dragging
+  });
+}
+initSettingsUI();
+
+// Esc toggles the pause/settings panel during play
+window.addEventListener('keydown', e => {
+  if (e.code === 'Escape') {
+    if (gState === 'playing') openSettings();
+    else if (gState === 'paused') closeSettings();
+  }
+});
+
+// ══════════════════════════════════════════════════════
+//  CAMERA
+// ══════════════════════════════════════════════════════
+function updateCamera() {
+  const tx = player.x - canvas.width  / (2 * ZOOM);
+  const ty = player.y - canvas.height / (2 * ZOOM);
+  camX += (tx - camX) * 0.12;
+  camY += (ty - camY) * 0.12;
+  const maxX = MAP_W * TILE - canvas.width  / ZOOM;
+  const maxY = MAP_H * TILE - canvas.height / ZOOM;
+  camX = Math.max(0, Math.min(camX, Math.max(0, maxX)));
+  camY = Math.max(0, Math.min(camY, Math.max(0, maxY)));
+}
+
+// ══════════════════════════════════════════════════════
+//  RENDER — TILES
+// ══════════════════════════════════════════════════════
+
+function drawTile(x, y, tileX, tileY) {
+  if (tileMap[tileY][tileX] === 0) {
+    // Floor: always fill black, then optional floor sprite
+    ctx.fillStyle = '#000';
+    ctx.fillRect(x, y, TILE, TILE);
+    const v = floorMap[tileY][tileX];
+    if (v === 1 && imgs.floor1) ctx.drawImage(imgs.floor1, x, y, TILE, TILE);
+    else if (v === 2 && imgs.floor2) ctx.drawImage(imgs.floor2, x, y, TILE, TILE);
+    return;
+  }
+
+  // Wall tile — check all 4 neighbors for floor adjacency
+  const floorN = tileY > 0       && tileMap[tileY - 1][tileX] === 0;
+  const floorS = tileY < MAP_H-1 && tileMap[tileY + 1][tileX] === 0;
+  const floorE = tileX < MAP_W-1 && tileMap[tileY][tileX + 1] === 0;
+  const floorW = tileX > 0       && tileMap[tileY][tileX - 1] === 0;
+
+  if (!floorN && !floorS && !floorE && !floorW) return; // deep exterior — leave black
+
+  // South-facing wall (floor directly above): dissolve underneath bricks
+  if (floorN && imgs.wallDis) ctx.drawImage(imgs.wallDis, x, y, TILE, TILE);
+
+  // Bricks on all visible wall faces — mainly wall_01, 15% wall_02
+  const wallImg = (tileRand(tileX, tileY) < 0.15 && imgs.wall2) ? imgs.wall2 : imgs.wall1;
+  if (wallImg) ctx.drawImage(wallImg, x, y, TILE, TILE);
+
+  // If the tile directly below is a deep-exterior void, paint dissolve there as a fade-out
+  const bTY = tileY + 1;
+  if (bTY < MAP_H && tileMap[bTY][tileX] === 1 && imgs.wallDis) {
+    const bFloorS = bTY < MAP_H-1 && tileMap[bTY + 1][tileX] === 0;
+    const bFloorE = tileX < MAP_W-1 && tileMap[bTY][tileX + 1] === 0;
+    const bFloorW = tileX > 0       && tileMap[bTY][tileX - 1] === 0;
+    // bFloorN is always false here — current tile is a wall (=1)
+    if (!bFloorS && !bFloorE && !bFloorW) {
+      ctx.drawImage(imgs.wallDis, x, y + TILE, TILE, TILE);
+    }
+  }
+}
+
+function renderTiles() {
+  const startX = Math.max(0, (camX / TILE | 0) - 1);
+  const startY = Math.max(0, (camY / TILE | 0) - 1);
+  const endX   = Math.min(MAP_W, startX + (canvas.width  / TILE / ZOOM | 0) + 3);
+  const endY   = Math.min(MAP_H, startY + (canvas.height / TILE / ZOOM | 0) + 3);
+
+  for (let ty = startY; ty < endY; ty++) {
+    for (let tx = startX; tx < endX; tx++) {
+      drawTile(tx * TILE, ty * TILE, tx, ty);
+    }
+  }
+}
+
+// ══════════════════════════════════════════════════════
+//  RENDER — ENTITIES
+// ══════════════════════════════════════════════════════
+function renderTokens() {
+  for (const c of tokenPickups) {
+    c.bob += 0.016 * 5;
+    const bobY = Math.sin(c.bob) * 2;
+    ctx.save();
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(c.x - 4, c.y + bobY - 4, 8, 8);
+    ctx.restore();
+  }
+}
+
+function renderGate() {
+  if (!gate || enemyCount > 0) return;
+  const t = gate.pulse;
+  const sz = TILE * 1.5;
+  ctx.save();
+  ctx.globalAlpha = 0.7 + Math.sin(t) * 0.3;
+  if (imgs.gate) {
+    ctx.drawImage(imgs.gate, gate.x - sz/2, gate.y - sz/2, sz, sz);
+  } else {
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(gate.x - 10, gate.y - 10, 20, 20);
+  }
+  ctx.restore();
+
+  // Label
+  ctx.save();
+  ctx.font = 'bold 9px Courier New';
+  ctx.fillStyle = '#fff';
+  ctx.textAlign = 'center';
+  ctx.globalAlpha = 0.5 + Math.sin(t) * 0.3;
+  ctx.fillText('STAIRS', gate.x, gate.y + sz/2 + 10);
+  ctx.restore();
+}
+
+function renderShrine() {
+  if (!shrine) return;
+  shrine.pulse += 0.05;
+  const t = shrine.pulse;
+  const alpha = shrine.used ? 0.15 : 0.7 + Math.sin(t) * 0.2;
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(shrine.x - 8, shrine.y - 8, 16, 16);
+  ctx.restore();
+  if (!shrine.used) {
+    ctx.save();
+    ctx.font = 'bold 9px Courier New';
+    ctx.fillStyle = '#fff';
+    ctx.textAlign = 'center';
+    ctx.globalAlpha = 0.5 + Math.sin(t*1.2)*0.3;
+    ctx.fillText('SHRINE', shrine.x, shrine.y + 18);
+    ctx.restore();
+  }
+}
+
+function renderEnemies() {
+  for (const e of enemies) {
+    ctx.save();
+    if (e.dead) {
+      ctx.globalAlpha = Math.max(0, e.deadTimer / 0.5);
+    }
+    ctx.translate(e.x, e.y);
+    const s = e.dead ? 0.7 : 1;
+    ctx.scale(e.facing * s, s);
+    if (imgs.enemy) {
+      const sz = 28;
+      ctx.drawImage(imgs.enemy, -sz/2, -sz/2, sz, sz);
+    } else {
+      ctx.fillStyle = '#fff';
+      ctx.beginPath();
+      ctx.arc(0, 0, ENEMY_SIZE, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
+
+    if (!e.dead && e.health < e.maxHealth) {
+      const bw = 24, bh = 3;
+      const bx = e.x - bw/2, by = e.y - ENEMY_SIZE - 7;
+      ctx.fillStyle = '#222';
+      ctx.fillRect(bx, by, bw, bh);
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(bx, by, bw * (e.health / e.maxHealth), bh);
+    }
+  }
+}
+
+function renderPlayer() {
+  if (!player) return;
+  const flash = player.invincible > 0 && Math.floor(player.invincibleFlash / 0.06) % 2 === 0;
+  if (flash) return;
+
+  const frames = player.walking
+    ? [imgs.pWalk0, imgs.pWalk1, imgs.pWalk2]
+    : [imgs.pIdle0, imgs.pIdle1, imgs.pIdle2];
+  const sprite = frames[player.animFrame];
+
+  ctx.save();
+  ctx.translate(player.x, player.y);
+  ctx.scale(player.facing, 1);
+
+  const sz = 28;
+  if (sprite) {
+    ctx.drawImage(sprite, -sz/2, -sz/2, sz, sz);
+  } else {
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(-10, -12, 20, 24);
+  }
+  ctx.restore();
+
+  // Shield ring
+  if (shieldCount > 0) {
+    ctx.save();
+    ctx.strokeStyle = `rgba(255,255,255,${0.4 + Math.sin(Date.now()*0.005)*0.2})`;
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.arc(player.x, player.y, PLAYER_SIZE + 7, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  // Reload bar — fills up in blue as the next shot becomes ready
+  if (player.shootCooldown > 0 && player.shootCooldownMax > 0) {
+    const bw = 24, bh = 3;
+    const bx = player.x - bw / 2, by = player.y - PLAYER_SIZE - 7;
+    const pct = 1 - player.shootCooldown / player.shootCooldownMax;
+    ctx.save();
+    ctx.fillStyle = '#222';
+    ctx.fillRect(bx, by, bw, bh);
+    ctx.fillStyle = '#4af';
+    ctx.fillRect(bx, by, bw * pct, bh);
+    ctx.restore();
+  }
+}
+
+function renderProjectiles() {
+  for (const p of projectiles) {
+    ctx.save();
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(p.x - PROJ_SIZE/2, p.y - PROJ_SIZE/2, PROJ_SIZE, PROJ_SIZE);
+    ctx.restore();
+  }
+}
+
+function renderParticles() {
+  for (const p of particles) {
+    const a = p.life / p.maxLife;
+    ctx.save();
+    ctx.globalAlpha = a * 0.9;
+    ctx.fillStyle = p.color;
+    ctx.fillRect(p.x - p.r*a, p.y - p.r*a, p.r*a*2, p.r*a*2);
+    ctx.restore();
+  }
+}
+
+function renderEnemyCount() {
+  if (enemyCount <= 0) return;
+  ctx.save();
+  ctx.font = 'bold 13px Courier New';
+  ctx.fillStyle = '#fff';
+  ctx.textAlign = 'center';
+  ctx.fillText(`${enemyCount} enemies remain`, canvas.width / 2, canvas.height - 20);
+  ctx.restore();
+}
+
+function render() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  if (gState === 'playing' || gState === 'upgrade' || gState === 'paused' || gState === 'shrine') {
+    ctx.save();
+    ctx.scale(ZOOM, ZOOM);
+    ctx.translate(-camX, -camY);
+
+    renderTiles();
+    renderTokens();
+    renderGate();
+    renderShrine();
+    renderEnemies();
+    renderPlayer();
+    renderProjectiles();
+    renderParticles();
+
+    ctx.restore();
+
+    renderEnemyCount();
+
+    if (screenFlash > 0) {
+      ctx.fillStyle = `rgba(255,255,255,${screenFlash * 0.35})`;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+    }
+  }
+}
+
+// ══════════════════════════════════════════════════════
+//  MAIN LOOP
+// ══════════════════════════════════════════════════════
+let lastTime = 0;
+
+function loop(ts) {
+  const dt = Math.min((ts - lastTime) / 1000, 0.05);
+  lastTime = ts;
+
+  if (screenFlash > 0) screenFlash = Math.max(0, screenFlash - dt * 4);
+
+  if (gState === 'title') {
+    if (anyJustPressed()) {
+      consumeJustPressed();
+      beginGame();
+    }
+  } else if (gState === 'dead') {
+    if (anyJustPressed()) {
+      consumeJustPressed();
+      beginGame();
+    }
+  } else if (gState === 'playing') {
+    updatePlayer(dt);
+    updateEnemies(dt);
+    updateProjectiles(dt);
+    updateParticles(dt);
+    updateFog();
+    updateCamera();
+    consumeJustPressed();
+  } else if (gState === 'upgrade' || gState === 'paused' || gState === 'shrine') {
+    // handled by DOM clicks — world is frozen, keep drawing the last frame
+  }
+
+  render();
+  present(ts / 1000);
+  if (gState === 'playing') renderMinimap();
+  requestAnimationFrame(loop);
+}
+
+// ══════════════════════════════════════════════════════
+//  BOOT
+// ══════════════════════════════════════════════════════
+loadAssets(() => {
+  showTitleScreen();
+  requestAnimationFrame(ts => { lastTime = ts; loop(ts); });
+});
+</script>
+
+</body>
+</html>

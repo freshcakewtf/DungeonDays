@@ -1,0 +1,5 @@
+# macOS
+.DS_Store
+
+# SMB / network share cruft
+.__smb0005
